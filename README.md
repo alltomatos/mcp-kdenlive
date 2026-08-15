@@ -1,12 +1,12 @@
 # mcp-kdenlive
 
-MCP server for Kdenlive — wraps [kdenlive-api](https://github.com/D-Ogi/kdenlive-api) for Claude Code and other LLM agents.
+Servidor MCP para o Kdenlive — encapsula a [kdenlive-api](https://github.com/D-Ogi/kdenlive-api) para o Claude Code e outros agentes de LLM.
 
-Gives an AI agent full NLE control over a running Kdenlive instance via D-Bus: import media, build timelines, add transitions, markers, effects, and render.
+Dá a um agente de IA controle total de NLE (edição não-linear) sobre uma instância do Kdenlive em execução via D-Bus: importar mídia, montar timelines, adicionar transições, marcadores, efeitos e renderizar.
 
-## Quick start
+## Início rápido
 
-Add to your `.mcp.json`:
+Adicione ao seu `.mcp.json`:
 
 ```json
 {
@@ -19,42 +19,43 @@ Add to your `.mcp.json`:
 }
 ```
 
-## Requirements
+## Requisitos
 
 - Python 3.10+
 - [kdenlive-api](https://github.com/D-Ogi/kdenlive-api)
 - [MCP SDK](https://pypi.org/project/mcp/) (`mcp>=1.0.0`)
-- Running [patched Kdenlive](https://github.com/D-Ogi/kdenlive) with D-Bus scripting API
+- [Kdenlive (fork com patch)](https://github.com/D-Ogi/kdenlive) em execução, com a API de scripting via D-Bus
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Tools
+## Ferramentas
 
-### Composite (use these first)
+### Compostas (use estas primeiro)
 
-| Tool | Description |
+| Ferramenta | Descrição |
 |------|-------------|
-| `build_timeline` | Full assembly from scene clips (import + sequence + transitions + audio + markers) |
-| `replace_scene` | Swap one scene clip by number, keep position and transitions |
-| `get_timeline_summary` | Text table of all clips on timeline |
-| `add_transitions_batch` | Batch cross-dissolves between all clips on a track |
-| `render_video` | Export timeline to video file |
+| `build_timeline` | Montagem completa a partir dos clipes de cena (importação + sequência + transições + áudio + marcadores) |
+| `replace_scene` | Troca um clipe de cena pelo número, mantendo posição e transições |
+| `get_timeline_summary` | Tabela em texto com todos os clipes da timeline |
+| `add_transitions_batch` | Adiciona dissolves cruzados em lote entre todos os clipes de uma trilha |
+| `render_video` | Exporta a timeline para um arquivo de vídeo |
 
-### Atomic
+### Atômicas
 
-| Domain | Tools |
+| Domínio | Ferramentas |
 |--------|-------|
-| Project | `get_project_info`, `save_project`, `load_project` |
-| Media | `get_media_pool`, `import_media`, `import_media_glob`, `create_bin_folder` |
+| Projeto | `get_project_info`, `save_project`, `load_project` |
+| Mídia | `get_media_pool`, `import_media`, `import_media_glob`, `create_bin_folder` |
 | Timeline | `get_track_list`, `get_clip_info`, `insert_clip`, `append_clips`, `move_clip`, `delete_clip`, `add_track`, `trim_clip` |
-| Transitions | `add_transition`, `remove_transition` |
-| Markers | `get_markers`, `add_marker`, `delete_marker`, `delete_markers_by_color` |
-| Replace | `replace_clip` |
+| Transições | `add_transition`, `remove_transition` |
+| Marcadores | `get_markers`, `add_marker`, `delete_marker`, `delete_markers_by_color` |
+| Substituição | `replace_clip` |
 | Checkpoints | `checkpoint_save`, `checkpoint_restore` |
 
-## Related repos
+## Repositórios relacionados
 
-- [kdenlive-api](https://github.com/D-Ogi/kdenlive-api) — DaVinci Resolve-compatible Python API
-- [D-Ogi/kdenlive](https://github.com/D-Ogi/kdenlive) — Kdenlive fork with D-Bus scripting API
+- [kdenlive-api](https://github.com/D-Ogi/kdenlive-api) — API Python compatível com o DaVinci Resolve
+- [D-Ogi/kdenlive](https://github.com/D-Ogi/kdenlive) — fork do Kdenlive com API de scripting via D-Bus
+</content>
