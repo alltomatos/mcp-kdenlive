@@ -18,3 +18,6 @@ Thumbs.db
 
 # Pytest
 .pytest_cache/
+
+# Gerado pelo script.ps1 / configuracao local
+.mcp.json

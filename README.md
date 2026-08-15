@@ -6,6 +6,18 @@ Dá a um agente de IA controle total de NLE (edição não-linear) sobre uma ins
 
 ## Início rápido
 
+### Instalação automática (Windows)
+
+Execute no PowerShell para instalar tudo automaticamente (cria `C:\kdenlive`, clona `mcp-kdenlive` e `kdenlive-api`, cria o virtualenv e gera o `.mcp.json`):
+
+```powershell
+irm https://raw.githubusercontent.com/alltomatos/mcp-kdenlive/main/script.ps1 | iex
+```
+
+Ver [script.ps1](script.ps1) para detalhes e parâmetros (`-InstallRoot`, `-McpRepo`, `-ApiRepo`, `-ProjectMcpJsonPath`).
+
+### Manual
+
 Adicione ao seu `.mcp.json`:
 
 ```json
