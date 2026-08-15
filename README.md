@@ -1,6 +1,6 @@
 # mcp-kdenlive
 
-Servidor MCP para o Kdenlive — encapsula a [kdenlive-api](https://github.com/D-Ogi/kdenlive-api) para o Claude Code e outros agentes de LLM.
+Servidor MCP para o Kdenlive — encapsula a [kdenlive-api](https://github.com/alltomatos/kdenlive-api) para o Claude Code e outros agentes de LLM.
 
 Dá a um agente de IA controle total de NLE (edição não-linear) sobre uma instância do Kdenlive em execução via D-Bus: importar mídia, montar timelines, adicionar transições, marcadores, efeitos e renderizar.
 
@@ -34,7 +34,7 @@ Adicione ao seu `.mcp.json`:
 ## Requisitos
 
 - Python 3.10+
-- [kdenlive-api](https://github.com/D-Ogi/kdenlive-api)
+- [kdenlive-api](https://github.com/alltomatos/kdenlive-api)
 - [MCP SDK](https://pypi.org/project/mcp/) (`mcp>=1.0.0`)
 - [Kdenlive (fork com patch)](https://github.com/D-Ogi/kdenlive) em execução, com a API de scripting via D-Bus
 
@@ -68,6 +68,6 @@ pip install -r requirements.txt
 
 ## Repositórios relacionados
 
-- [kdenlive-api](https://github.com/D-Ogi/kdenlive-api) — API Python compatível com o DaVinci Resolve
+- [kdenlive-api](https://github.com/alltomatos/kdenlive-api) — API Python compatível com o DaVinci Resolve
 - [D-Ogi/kdenlive](https://github.com/D-Ogi/kdenlive) — fork do Kdenlive com API de scripting via D-Bus
 </content>

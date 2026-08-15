@@ -21,7 +21,7 @@
 param(
     [string]$InstallRoot = "C:\kdenlive",
     [string]$McpRepo = "https://github.com/alltomatos/mcp-kdenlive.git",
-    [string]$ApiRepo = "https://github.com/D-Ogi/kdenlive-api.git",
+    [string]$ApiRepo = "https://github.com/alltomatos/kdenlive-api.git",
     [string]$ProjectMcpJsonPath = $PSScriptRoot
 )
 
