@@ -112,7 +112,7 @@ function Install-Git {
     # winget e um exe nativo: sua saida nao capturada vira parte do "return"
     # da funcao PowerShell que o chama, corrompendo qualquer $x = Funcao(...)
     # mais adiante. Out-Host imprime ao vivo sem poluir o pipeline.
-    winget install --id Git.Git -e --silent --source winget --accept-source-agreements --accept-package-agreements | Out-Host
+    winget install --id Git.Git -e --source winget --accept-source-agreements --accept-package-agreements | Out-Host
 
     Update-SessionPath
     if (-not (Test-CommandExists git)) {
@@ -147,7 +147,7 @@ function Install-Python {
     }
 
     Write-Host "python nao encontrado (ou e so o stub da Microsoft Store) -- instalando via winget (Python.Python.3.11)..." -ForegroundColor Yellow
-    winget install --id Python.Python.3.11 -e --silent --source winget --accept-source-agreements --accept-package-agreements | Out-Host
+    winget install --id Python.Python.3.11 -e --source winget --accept-source-agreements --accept-package-agreements | Out-Host
 
     Update-SessionPath
     if (-not (Test-PythonWorks)) {
@@ -183,7 +183,7 @@ function Install-7Zip {
     }
 
     Write-Host "7-Zip nao encontrado -- instalando via winget (7zip.7zip)..." -ForegroundColor Yellow
-    winget install --id 7zip.7zip -e --silent --source winget --accept-source-agreements --accept-package-agreements | Out-Host
+    winget install --id 7zip.7zip -e --source winget --accept-source-agreements --accept-package-agreements | Out-Host
 
     Update-SessionPath
     $installed = Get-7ZipExe
