@@ -16,15 +16,14 @@ iex "& { $(irm https://raw.githubusercontent.com/alltomatos/mcp-kdenlive/main/sc
 
 (O `& { ... }` isola o script num escopo próprio — sem isso, `irm | iex` roda o `param()` do script direto na sessão atual e pode falhar com `MetadataError` se já existir uma variável `$Action` no shell.)
 
-Um menu aparece com as opções:
+Sem menu, sem opções — o script instala tudo como um pacote único:
 
-1. Instalar o Kdenlive oficial (winget) — **sem** API de scripting D-Bus
-2. Instalar o MCP (clona `mcp-kdenlive` + `kdenlive-api`, cria o virtualenv, gera o `.mcp.json`)
-3. Instalar tudo (1 + 2)
-4. Compilar o Kdenlive com suporte a D-Bus a partir do [fork alltomatos/kdenlive](https://github.com/alltomatos/kdenlive/tree/dbus-scripting-windows), via KDE Craft — processo longo (30-60+ min na primeira vez: instala Visual Studio Build Tools, KDE Craft, e compila), mas é o único jeito de o MCP controlar o Kdenlive de verdade no Windows
-5. **Recomendado**: tudo com D-Bus (2 + 4)
+1. Instala o MCP (clona `mcp-kdenlive` + `kdenlive-api`, cria o virtualenv, gera o `.mcp.json`)
+2. Compila o Kdenlive com suporte a D-Bus a partir do [fork alltomatos/kdenlive](https://github.com/alltomatos/kdenlive/tree/dbus-scripting-windows), via KDE Craft — processo longo (30-60+ min na primeira vez: instala Visual Studio Build Tools, KDE Craft, e compila)
 
-Ver [script.ps1](script.ps1) para detalhes e parâmetros (`-Action`, `-InstallRoot`, `-McpRepo`, `-ApiRepo`, `-CraftRoot`, `-KdenliveForkRepo`, `-KdenliveForkBranch`, `-ProjectMcpJsonPath`).
+Não existe opção para instalar o Kdenlive "oficial" (winget): esse pacote não tem a API de scripting via D-Bus, então seria inútil para o MCP — só o fork compilado funciona de verdade.
+
+Ver [script.ps1](script.ps1) para os parâmetros (`-InstallRoot`, `-McpRepo`, `-ApiRepo`, `-CraftRoot`, `-KdenliveForkRepo`, `-KdenliveForkBranch`, `-ProjectMcpJsonPath`).
 
 ### Manual
 
