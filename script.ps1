@@ -78,20 +78,49 @@ function Get-VsWhereDir {
     return "C:\Program Files (x86)\Microsoft Visual Studio\Installer"
 }
 
+function Update-SessionPath {
+    # Depois de instalar algo via winget, o PATH so e atualizado em sessoes
+    # NOVAS do shell. Reler do registro (Machine + User) evita ter que
+    # reiniciar o PowerShell no meio do script.
+    $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+    $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+    $env:PATH = "$machinePath;$userPath"
+}
+
+function Install-Git {
+    Write-Step "Verificando o Git"
+
+    if (Test-CommandExists git) {
+        Write-Host "git: OK ($(git --version))" -ForegroundColor Green
+        return
+    }
+
+    if (-not (Test-CommandExists winget)) {
+        throw "git nao encontrado no PATH, e winget tambem nao esta disponivel para instala-lo. Instale o Git manualmente antes de continuar."
+    }
+
+    Write-Host "git nao encontrado -- instalando via winget (Git.Git)..." -ForegroundColor Yellow
+    winget install --id Git.Git -e --source winget --accept-source-agreements --accept-package-agreements
+
+    Update-SessionPath
+    if (-not (Test-CommandExists git)) {
+        throw "Git instalado via winget mas 'git' ainda nao esta no PATH desta sessao. Feche e reabra o PowerShell e rode o script de novo."
+    }
+    Write-Host "git instalado: $(git --version)" -ForegroundColor Green
+}
+
 # ---------------------------------------------------------------------------
 # Instalar o MCP (tudo que ele precisa para funcionar)
 # ---------------------------------------------------------------------------
 function Install-Mcp {
     Write-Step "Verificando pre-requisitos do MCP"
 
-    if (-not (Test-CommandExists git)) {
-        throw "git nao encontrado no PATH. Instale o Git antes de continuar."
-    }
+    Install-Git
+
     if (-not (Test-CommandExists python)) {
         throw "python nao encontrado no PATH. Instale o Python 3.10+ antes de continuar."
     }
 
-    Write-Host "git: OK"
     Write-Host "python: $(python --version)"
 
     # -- Criar pasta de instalacao ------------------------------------------
