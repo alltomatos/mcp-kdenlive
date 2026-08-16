@@ -485,8 +485,9 @@ function New-KdenliveDesktopShortcut($kdenliveExePath, $kdenliveBinPath) {
     Write-Step "Criando atalho na area de trabalho"
 
     # kdenlive.exe sozinho nao tem as variaveis de ambiente do D-Bus. O
-    # atalho aponta para um .cmd lancador que configura o ambiente e so
-    # entao abre o Kdenlive.
+    # atalho aponta para um .vbs que dispara um PowerShell 100% invisivel
+    # (sem janela de console nenhuma) que configura o ambiente e abre o
+    # Kdenlive -- so a janela do proprio Kdenlive aparece.
     #
     # NAO usamos "DBUS_SESSION_BUS_ADDRESS=autolaunch:scope=*install-path":
     # o autolaunch do libdbus no Windows tem uma race condition -- kdenlive.exe
@@ -495,26 +496,40 @@ function New-KdenliveDesktopShortcut($kdenliveExePath, $kdenliveBinPath) {
     # scope, dependendo do timing. Em vez disso, subimos um dbus-daemon
     # explicito aqui e usamos o MESMO endereco concreto (tcp:host=...) para
     # tudo, o que elimina a ambiguidade.
-    $launcherPath = Join-Path (Split-Path $kdenliveBinPath -Parent) "Launch-Kdenlive.cmd"
-    $launcherContent = @"
-@echo off
-set "BIN=$kdenliveBinPath"
-set "PATH=%BIN%;%PATH%"
-set "DBUS_ADDR_FILE=%TEMP%\kdenlive_dbus_addr_%RANDOM%.txt"
-start "" /B cmd /c ""%BIN%\dbus-daemon.exe" --session --print-address > "%DBUS_ADDR_FILE%" 2>&1"
-timeout /t 2 /nobreak >nul
-set /p DBUS_SESSION_BUS_ADDRESS=<"%DBUS_ADDR_FILE%"
-del "%DBUS_ADDR_FILE%" >nul 2>&1
-start "" "$kdenliveExePath"
+    #
+    # dbus-daemon e kdenlive.exe sobem via Start-Process (sem -WindowStyle
+    # Hidden neles: dbus-daemon ja nao abre janela por padrao e kdenlive e
+    # GUI). Como nada fica preso a um console visivel, fechar qualquer janela
+    # nao mata os processos -- so encerram se voce fechar o Kdenlive ou matar
+    # os processos manualmente.
+    $installDir = Split-Path $kdenliveBinPath -Parent
+    $ps1Path = Join-Path $installDir "Launch-Kdenlive.ps1"
+    $ps1Content = @"
+`$bin = "$kdenliveBinPath"
+`$env:PATH = "`$bin;`$env:PATH"
+`$addrFile = Join-Path `$env:TEMP ("kdenlive_dbus_addr_" + [guid]::NewGuid().ToString() + ".txt")
+Start-Process -FilePath (Join-Path `$bin "dbus-daemon.exe") -ArgumentList "--session","--print-address" -RedirectStandardOutput `$addrFile -WindowStyle Hidden
+Start-Sleep -Seconds 2
+`$addr = (Get-Content `$addrFile -Raw -ErrorAction SilentlyContinue)
+Remove-Item `$addrFile -Force -ErrorAction SilentlyContinue
+if (`$addr) { `$env:DBUS_SESSION_BUS_ADDRESS = `$addr.Trim() }
+Start-Process -FilePath "$kdenliveExePath"
 "@
-    Set-ContentNoBom $launcherPath $launcherContent
+    Set-ContentNoBom $ps1Path $ps1Content
+
+    $vbsPath = Join-Path $installDir "Launch-Kdenlive.vbs"
+    $vbsContent = @"
+Set shell = CreateObject("WScript.Shell")
+shell.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""$ps1Path""", 0, False
+"@
+    Set-ContentNoBom $vbsPath $vbsContent
 
     $desktop = [Environment]::GetFolderPath("Desktop")
     $shortcutPath = Join-Path $desktop "Kdenlive (MCP).lnk"
 
     $shell = New-Object -ComObject WScript.Shell
     $shortcut = $shell.CreateShortcut($shortcutPath)
-    $shortcut.TargetPath = $launcherPath
+    $shortcut.TargetPath = $vbsPath
     $shortcut.WorkingDirectory = Split-Path $kdenliveExePath -Parent
     $shortcut.IconLocation = $kdenliveExePath
     $shortcut.Description = "Kdenlive com API de scripting D-Bus (para o MCP)"
@@ -548,9 +563,10 @@ New-KdenliveDesktopShortcut $kdenliveExe $kdenliveBinDir
 Write-Step "Resumo"
 Write-Host "kdenlive.exe:  $kdenliveExe" -ForegroundColor Green
 Write-Host "Atalho:        Kdenlive (MCP) na area de trabalho" -ForegroundColor Green
-Write-Host "Use sempre o atalho (ou o Launch-Kdenlive.cmd na mesma pasta do exe) para" -ForegroundColor Cyan
+Write-Host "Use sempre o atalho (ou o Launch-Kdenlive.vbs na mesma pasta do exe) para" -ForegroundColor Cyan
 Write-Host "abrir o Kdenlive -- ele sobe um dbus-daemon dedicado com endereco explicito," -ForegroundColor Cyan
 Write-Host "necessario porque o autolaunch do D-Bus no Windows e' instavel (race condition)." -ForegroundColor Cyan
+Write-Host "O lancador roda 100% invisivel -- so a janela do Kdenlive aparece." -ForegroundColor Cyan
 
 Write-Host ""
 Write-Host "Concluido." -ForegroundColor Green
