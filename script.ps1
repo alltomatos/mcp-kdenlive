@@ -477,11 +477,24 @@ function New-KdenliveDesktopShortcut($kdenliveExePath, $kdenliveBinPath) {
     # kdenlive.exe sozinho nao tem as variaveis de ambiente do D-Bus. O
     # atalho aponta para um .cmd lancador que configura o ambiente e so
     # entao abre o Kdenlive.
+    #
+    # NAO usamos "DBUS_SESSION_BUS_ADDRESS=autolaunch:scope=*install-path":
+    # o autolaunch do libdbus no Windows tem uma race condition -- kdenlive.exe
+    # e ferramentas de linha de comando (dbus-send/qdbus) podem acabar cada um
+    # autolancando/conectando a um dbus-daemon DIFERENTE, mesmo com o mesmo
+    # scope, dependendo do timing. Em vez disso, subimos um dbus-daemon
+    # explicito aqui e usamos o MESMO endereco concreto (tcp:host=...) para
+    # tudo, o que elimina a ambiguidade.
     $launcherPath = Join-Path (Split-Path $kdenliveBinPath -Parent) "Launch-Kdenlive.cmd"
     $launcherContent = @"
 @echo off
-set "PATH=$kdenliveBinPath;%PATH%"
-set "DBUS_SESSION_BUS_ADDRESS=autolaunch:scope=*install-path"
+set "BIN=$kdenliveBinPath"
+set "PATH=%BIN%;%PATH%"
+set "DBUS_ADDR_FILE=%TEMP%\kdenlive_dbus_addr_%RANDOM%.txt"
+start "" /B cmd /c ""%BIN%\dbus-daemon.exe" --session --print-address > "%DBUS_ADDR_FILE%" 2>&1"
+timeout /t 2 /nobreak >nul
+set /p DBUS_SESSION_BUS_ADDRESS=<"%DBUS_ADDR_FILE%"
+del "%DBUS_ADDR_FILE%" >nul 2>&1
 start "" "$kdenliveExePath"
 "@
     Set-ContentNoBom $launcherPath $launcherContent
@@ -530,10 +543,9 @@ New-KdenliveDesktopShortcut $kdenliveExe $kdenliveBinDir
 Write-Step "Resumo"
 Write-Host "kdenlive.exe:  $kdenliveExe" -ForegroundColor Green
 Write-Host "Atalho:        Kdenlive (MCP) na area de trabalho" -ForegroundColor Green
-Write-Host "Para rodar com D-Bus manualmente (sem o atalho):" -ForegroundColor Cyan
-Write-Host "  `$env:PATH = `"$kdenliveBinDir;`" + `$env:PATH"
-Write-Host "  `$env:DBUS_SESSION_BUS_ADDRESS = `"autolaunch:scope=*install-path`""
-Write-Host "  & `"$kdenliveExe`""
+Write-Host "Use sempre o atalho (ou o Launch-Kdenlive.cmd na mesma pasta do exe) para" -ForegroundColor Cyan
+Write-Host "abrir o Kdenlive -- ele sobe um dbus-daemon dedicado com endereco explicito," -ForegroundColor Cyan
+Write-Host "necessario porque o autolaunch do D-Bus no Windows e' instavel (race condition)." -ForegroundColor Cyan
 
 Write-Host ""
 Write-Host "Concluido." -ForegroundColor Green
