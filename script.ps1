@@ -6,10 +6,10 @@
     Roda tudo em sequencia, sem menu nem opcoes -- como um pacote unico:
       1. Instala o MCP (clona mcp-kdenlive + kdenlive-api, cria venv,
          instala dependencias e gera .mcp.json)
-      2. Compila o Kdenlive com suporte a D-Bus a partir do fork
-         alltomatos/kdenlive via KDE Craft -- processo longo (~30-60min na
-         primeira vez), mas e o unico jeito do MCP controlar o Kdenlive de
-         verdade no Windows
+      2. Baixa o build portatil pronto do Kdenlive com D-Bus (release do
+         fork alltomatos/kdenlive) e extrai -- rapido, poucos minutos.
+         Se o download/extracao falhar por qualquer motivo, cai para
+         compilar do zero via KDE Craft (processo longo, ~30-60min).
 
     Etapas do MCP:
       - Cria C:\kdenlive
@@ -17,7 +17,12 @@
       - Cria um virtualenv e instala as dependencias Python
       - Gera um .mcp.json de exemplo apontando para o servidor
 
-    Etapas do build com D-Bus:
+    Etapas do Kdenlive (portatil, caminho padrao):
+      - Baixa o .zip do release mais recente em
+        https://github.com/alltomatos/kdenlive/releases
+      - Extrai em C:\kdenlive\kdenlive-portable
+
+    Etapas do build com D-Bus (fallback, ou com -ForceBuild):
       - Instala o Visual Studio Build Tools (workload C++) via winget, se
         o compilador MSVC ainda nao estiver presente
       - Instala o KDE Craft em C:\CraftRoot (bootstrap oficial)
@@ -29,11 +34,13 @@
         KDE e compila so o Kdenlive)
 
 .NOTES
-    Requer: git, python 3.10+ no PATH, winget (para o Visual Studio Build Tools).
+    Requer: git, python 3.10+ no PATH. winget so e necessario se cair no
+    fallback de build (Visual Studio Build Tools).
     Nao ha instalacao do Kdenlive "oficial" via winget -- o pacote oficial nao
-    tem a API de scripting via D-Bus, entao seria inutil para o MCP. Este
-    script sempre compila o fork com patch
-    (https://github.com/alltomatos/kdenlive, branch dbus-scripting-windows).
+    tem a API de scripting via D-Bus, entao seria inutil para o MCP.
+
+.PARAMETER ForceBuild
+    Pula o download do portatil e compila direto via KDE Craft.
 #>
 
 [CmdletBinding()]
@@ -44,7 +51,10 @@ param(
     [string]$ProjectMcpJsonPath = $(if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }),
     [string]$CraftRoot = "C:\CraftRoot",
     [string]$KdenliveForkRepo = "https://github.com/alltomatos/kdenlive.git",
-    [string]$KdenliveForkBranch = "dbus-scripting-windows"
+    [string]$KdenliveForkBranch = "dbus-scripting-windows",
+    [string]$KdenlivePortableUrl = "https://github.com/alltomatos/kdenlive/releases/latest/download/kdenlive-dbus-windows-x86_64.zip",
+    [string]$KdenlivePortableRoot = "C:\kdenlive\kdenlive-portable",
+    [switch]$ForceBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -168,7 +178,41 @@ function Install-Mcp {
 }
 
 # ---------------------------------------------------------------------------
-# Compilar o Kdenlive com suporte a D-Bus via KDE Craft
+# Kdenlive portatil (caminho padrao -- baixa o release ja pronto)
+# ---------------------------------------------------------------------------
+function Install-KdenlivePortable {
+    Write-Step "Baixando o Kdenlive portatil com D-Bus (release do fork)"
+
+    $exePath = Join-Path $KdenlivePortableRoot "bin\kdenlive.exe"
+    if (Test-Path $exePath) {
+        Write-Host "Ja existe em $KdenlivePortableRoot." -ForegroundColor Green
+        return $exePath
+    }
+
+    New-Item -ItemType Directory -Force -Path $KdenlivePortableRoot | Out-Null
+    $zipPath = Join-Path $env:TEMP "kdenlive-dbus-windows-x86_64.zip"
+
+    Write-Host "Baixando de $KdenlivePortableUrl ..."
+    Invoke-WebRequest -Uri $KdenlivePortableUrl -OutFile $zipPath
+
+    Write-Host "Extraindo para $KdenlivePortableRoot ..."
+    # Expand-Archive e absurdamente lento com milhares de arquivos pequenos no
+    # PowerShell 5.1 (>20min para este pacote). ZipFile.ExtractToDirectory faz
+    # o mesmo em segundos.
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $KdenlivePortableRoot)
+    Remove-Item $zipPath -Force
+
+    if (-not (Test-Path $exePath)) {
+        throw "kdenlive.exe nao encontrado em $exePath apos extrair o pacote portatil."
+    }
+
+    Write-Host "Kdenlive portatil pronto em $KdenlivePortableRoot." -ForegroundColor Green
+    return $exePath
+}
+
+# ---------------------------------------------------------------------------
+# Compilar o Kdenlive com suporte a D-Bus via KDE Craft (fallback)
 # ---------------------------------------------------------------------------
 function Install-VSBuildTools {
     Write-Step "Verificando o compilador MSVC (Visual Studio Build Tools)"
@@ -309,12 +353,8 @@ function Build-KdenliveWithDbus {
         throw "craft kdenlive nao atualizou kdenlive.exe -- o build provavelmente falhou. Veja a saida acima para o erro real."
     }
 
-    Write-Step "Resumo do build"
     Write-Host "kdenlive.exe:  $exePath" -ForegroundColor Green
-    Write-Host "Para rodar com D-Bus, defina antes de abrir o Kdenlive:" -ForegroundColor Cyan
-    Write-Host "  `$env:PATH = `"$CraftRoot\bin;`" + `$env:PATH"
-    Write-Host "  `$env:DBUS_SESSION_BUS_ADDRESS = `"autolaunch:scope=*install-path`""
-    Write-Host "  & `"$exePath`""
+    return $exePath
 }
 
 # ---------------------------------------------------------------------------
@@ -322,10 +362,32 @@ function Build-KdenliveWithDbus {
 # ---------------------------------------------------------------------------
 Write-Host ""
 Write-Host "=== Instalador mcp-kdenlive ===" -ForegroundColor Cyan
-Write-Host "Instalando o MCP e compilando o Kdenlive com suporte a D-Bus. Isso pode levar 30-60+ minutos na primeira vez." -ForegroundColor Cyan
 
 Install-Mcp
-Build-KdenliveWithDbus
+
+$kdenliveExe = $null
+if (-not $ForceBuild) {
+    try {
+        $kdenliveExe = Install-KdenlivePortable
+        $kdenliveBinDir = Split-Path $kdenliveExe -Parent
+    } catch {
+        Write-Host ""
+        Write-Host "Download do portatil falhou ($($_.Exception.Message)) -- caindo para build via KDE Craft (~30-60min)." -ForegroundColor Yellow
+    }
+}
+
+if (-not $kdenliveExe) {
+    Write-Host "Compilando o Kdenlive via KDE Craft. Isso pode levar 30-60+ minutos na primeira vez." -ForegroundColor Cyan
+    $kdenliveExe = Build-KdenliveWithDbus
+    $kdenliveBinDir = Join-Path $CraftRoot "bin"
+}
+
+Write-Step "Resumo"
+Write-Host "kdenlive.exe:  $kdenliveExe" -ForegroundColor Green
+Write-Host "Para rodar com D-Bus, defina antes de abrir o Kdenlive:" -ForegroundColor Cyan
+Write-Host "  `$env:PATH = `"$kdenliveBinDir;`" + `$env:PATH"
+Write-Host "  `$env:DBUS_SESSION_BUS_ADDRESS = `"autolaunch:scope=*install-path`""
+Write-Host "  & `"$kdenliveExe`""
 
 Write-Host ""
 Write-Host "Concluido." -ForegroundColor Green

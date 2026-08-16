@@ -19,11 +19,11 @@ iex "& { $(irm https://raw.githubusercontent.com/alltomatos/mcp-kdenlive/main/sc
 Sem menu, sem opções — o script instala tudo como um pacote único:
 
 1. Instala o MCP (clona `mcp-kdenlive` + `kdenlive-api`, cria o virtualenv, gera o `.mcp.json`)
-2. Compila o Kdenlive com suporte a D-Bus a partir do [fork alltomatos/kdenlive](https://github.com/alltomatos/kdenlive/tree/dbus-scripting-windows), via KDE Craft — processo longo (30-60+ min na primeira vez: instala Visual Studio Build Tools, KDE Craft, e compila)
+2. Baixa o [Kdenlive portátil pré-compilado com D-Bus](https://github.com/alltomatos/kdenlive/releases) (fork [alltomatos/kdenlive](https://github.com/alltomatos/kdenlive/tree/dbus-scripting-windows)) e extrai — leva só alguns minutos. Se o download falhar por qualquer motivo, cai automaticamente para compilar do zero via KDE Craft (processo longo, 30-60+ min: instala Visual Studio Build Tools, KDE Craft, e compila)
 
-Não existe opção para instalar o Kdenlive "oficial" (winget): esse pacote não tem a API de scripting via D-Bus, então seria inútil para o MCP — só o fork compilado funciona de verdade.
+Não existe opção para instalar o Kdenlive "oficial" (winget): esse pacote não tem a API de scripting via D-Bus, então seria inútil para o MCP.
 
-Ver [script.ps1](script.ps1) para os parâmetros (`-InstallRoot`, `-McpRepo`, `-ApiRepo`, `-CraftRoot`, `-KdenliveForkRepo`, `-KdenliveForkBranch`, `-ProjectMcpJsonPath`).
+Para pular direto para o build do zero (ex: para pegar patches mais recentes ainda não publicados como release), use `-ForceBuild`. Ver [script.ps1](script.ps1) para os demais parâmetros (`-InstallRoot`, `-McpRepo`, `-ApiRepo`, `-CraftRoot`, `-KdenliveForkRepo`, `-KdenliveForkBranch`, `-KdenlivePortableUrl`, `-KdenlivePortableRoot`, `-ProjectMcpJsonPath`).
 
 ### Manual
 
@@ -45,7 +45,7 @@ Adicione ao seu `.mcp.json`:
 - Python 3.10+
 - [kdenlive-api](https://github.com/alltomatos/kdenlive-api)
 - [MCP SDK](https://pypi.org/project/mcp/) (`mcp>=1.0.0`)
-- [Kdenlive (fork com patch)](https://github.com/alltomatos/kdenlive/tree/dbus-scripting-windows) em execução, com a API de scripting via D-Bus (no Windows, compilado pela opção 4/5 do `script.ps1`)
+- [Kdenlive (fork com patch)](https://github.com/alltomatos/kdenlive/tree/dbus-scripting-windows) em execução, com a API de scripting via D-Bus (no Windows, o `script.ps1` baixa o [build portátil](https://github.com/alltomatos/kdenlive/releases) automaticamente, ou compila via KDE Craft se preciso)
 
 ```bash
 pip install -r requirements.txt
