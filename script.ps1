@@ -3,41 +3,57 @@
     Instalador do Kdenlive e/ou do MCP Kdenlive em uma maquina Windows.
 
 .DESCRIPTION
-    Apresenta um menu com 3 opcoes:
-      1. Instalar o Kdenlive (via winget)
+    Apresenta um menu com 5 opcoes:
+      1. Instalar o Kdenlive oficial (via winget) -- SEM API de scripting D-Bus
       2. Instalar o MCP (clona mcp-kdenlive + kdenlive-api, cria venv,
          instala dependencias e gera .mcp.json)
       3. Instalar tudo (1 + 2)
+      4. Compilar o Kdenlive com suporte a D-Bus (fork alltomatos/kdenlive)
+         via KDE Craft -- processo longo (~30-60min), mas deixa o MCP
+         funcional de verdade
+      5. Instalar tudo (2 + 4) -- MCP + Kdenlive com D-Bus compilado
 
-    Etapas do MCP (opcao 2/3):
+    Etapas do MCP (opcao 2/3/5):
       - Cria C:\kdenlive
       - Clona mcp-kdenlive e kdenlive-api dentro de C:\kdenlive (repos irmaos)
       - Cria um virtualenv e instala as dependencias Python
       - Verifica se ha um backend D-Bus funcional (dbus-send/qdbus/gdbus)
       - Gera um .mcp.json de exemplo apontando para o servidor
 
+    Etapas do build com D-Bus (opcao 4/5):
+      - Instala o Visual Studio Build Tools (workload C++) via winget, se
+        o compilador MSVC ainda nao estiver presente
+      - Instala o KDE Craft em C:\CraftRoot (bootstrap oficial)
+      - Registra um blueprint customizado apontando para
+        https://github.com/alltomatos/kdenlive (branch dbus-scripting-windows),
+        que ja contem os patches necessarios para compilar no MSVC e a API
+        D-Bus expandida
+      - Roda "craft kdenlive" (baixa Qt/KF6/MLT pre-compilados do cache do
+        KDE e compila so o Kdenlive)
+
 .NOTES
-    Requer: git, python 3.10+ no PATH. winget para a opcao de instalar o Kdenlive.
+    Requer: git, python 3.10+ no PATH. winget para as opcoes 1 e 4.
     IMPORTANTE: o pacote `KDE.Kdenlive` do winget instala o Kdenlive OFICIAL,
     sem a API de scripting via D-Bus. Para o MCP controlar o Kdenlive de fato,
-    ainda e necessario o fork com patch (https://github.com/D-Ogi/kdenlive) e
-    o KDE Craft (CraftRoot) fornecendo dbus-send/qdbus/gdbus. Este script avisa
-    quando esse backend nao e encontrado.
+    use a opcao 4 (ou 5), que compila o fork com patch
+    (https://github.com/alltomatos/kdenlive, branch dbus-scripting-windows).
 
 .PARAMETER Action
-    "1" instala so o Kdenlive, "2" so o MCP, "3" os dois. Se omitido, mostra
-    um menu interativo.
+    "1" a "5" conforme o menu. Se omitido, mostra um menu interativo.
 #>
 
 [CmdletBinding()]
 param(
-    [ValidateSet("1", "2", "3")]
+    [ValidateSet("1", "2", "3", "4", "5")]
     [string]$Action,
     [string]$InstallRoot = "C:\kdenlive",
     [string]$McpRepo = "https://github.com/alltomatos/mcp-kdenlive.git",
     [string]$ApiRepo = "https://github.com/alltomatos/kdenlive-api.git",
     [string]$KdenliveWingetId = "KDE.Kdenlive",
-    [string]$ProjectMcpJsonPath = $(if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path })
+    [string]$ProjectMcpJsonPath = $(if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }),
+    [string]$CraftRoot = "C:\CraftRoot",
+    [string]$KdenliveForkRepo = "https://github.com/alltomatos/kdenlive.git",
+    [string]$KdenliveForkBranch = "dbus-scripting-windows"
 )
 
 $ErrorActionPreference = "Stop"
@@ -49,6 +65,16 @@ function Write-Step($msg) {
 
 function Test-CommandExists($name) {
     return [bool](Get-Command $name -ErrorAction SilentlyContinue)
+}
+
+function Set-ContentNoBom($path, $content) {
+    # Windows PowerShell 5.1's Set-Content -Encoding utf8 always writes a BOM,
+    # which breaks tools (like Python) that don't expect one on this file type.
+    [System.IO.File]::WriteAllText($path, $content, (New-Object System.Text.UTF8Encoding($false)))
+}
+
+function Get-VsWhereDir {
+    return "C:\Program Files (x86)\Microsoft Visual Studio\Installer"
 }
 
 # ---------------------------------------------------------------------------
@@ -66,8 +92,7 @@ function Install-Kdenlive {
     Write-Host ""
     Write-Host "Kdenlive instalado (pacote oficial winget)." -ForegroundColor Green
     Write-Host "Este pacote NAO tem a API de scripting via D-Bus." -ForegroundColor Yellow
-    Write-Host "Para o MCP controlar o Kdenlive de verdade, use o fork com patch:" -ForegroundColor Yellow
-    Write-Host "  https://github.com/D-Ogi/kdenlive" -ForegroundColor Yellow
+    Write-Host "Para o MCP controlar o Kdenlive de verdade, use a opcao 4 (build com D-Bus)." -ForegroundColor Yellow
 }
 
 # ---------------------------------------------------------------------------
@@ -147,13 +172,10 @@ function Install-Mcp {
     # -- Checar backend D-Bus -------------------------------------------------
     Write-Step "Verificando backend D-Bus (necessario para falar com o Kdenlive)"
 
-    $craftRoot = $env:CRAFT_ROOT
-    if (-not $craftRoot) { $craftRoot = "C:\CraftRoot" }
-
     $dbusTools = @("dbus-send.exe", "qdbus.exe", "gdbus.exe")
     $foundDbus = $null
     foreach ($tool in $dbusTools) {
-        $candidate = Join-Path (Join-Path $craftRoot "bin") $tool
+        $candidate = Join-Path (Join-Path $CraftRoot "bin") $tool
         if (Test-Path $candidate) { $foundDbus = $candidate; break }
     }
     if (-not $foundDbus) {
@@ -167,9 +189,7 @@ function Install-Mcp {
     } else {
         Write-Host "NENHUM backend D-Bus encontrado (dbus-send/qdbus/gdbus)." -ForegroundColor Yellow
         Write-Host "O servidor MCP vai subir, mas nao conseguira controlar o Kdenlive de verdade." -ForegroundColor Yellow
-        Write-Host "Voce precisa instalar o KDE Craft (https://community.kde.org/Craft) e" -ForegroundColor Yellow
-        Write-Host "rodar o fork com patch do Kdenlive: https://github.com/D-Ogi/kdenlive" -ForegroundColor Yellow
-        Write-Host "Depois, defina a variavel de ambiente CRAFT_ROOT apontando para a instalacao." -ForegroundColor Yellow
+        Write-Host "Rode este script com a opcao 4 (ou 5) para compilar o Kdenlive com suporte D-Bus." -ForegroundColor Yellow
     }
 
     # -- Gerar .mcp.json de exemplo -------------------------------------------
@@ -197,8 +217,158 @@ function Install-Mcp {
     Write-Host ".mcp.json:     $mcpJsonPath"
     if (-not $foundDbus) {
         Write-Host ""
-        Write-Host "Pendente: configurar o backend D-Bus (KDE Craft + Kdenlive com patch) antes de usar de verdade." -ForegroundColor Yellow
+        Write-Host "Pendente: rode a opcao 4 (ou 5) para compilar o Kdenlive com D-Bus." -ForegroundColor Yellow
     }
+}
+
+# ---------------------------------------------------------------------------
+# Opcao 4: Compilar o Kdenlive com suporte a D-Bus via KDE Craft
+# ---------------------------------------------------------------------------
+function Install-VSBuildTools {
+    Write-Step "Verificando o compilador MSVC (Visual Studio Build Tools)"
+
+    $vswhere = Join-Path (Get-VsWhereDir) "vswhere.exe"
+    $hasCl = $false
+    if (Test-Path $vswhere) {
+        $vcToolsPath = & $vswhere -all -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+        if ($vcToolsPath) { $hasCl = $true }
+    }
+
+    if ($hasCl) {
+        Write-Host "MSVC (workload C++) ja instalado." -ForegroundColor Green
+        return
+    }
+
+    if (-not (Test-CommandExists winget)) {
+        throw "winget nao encontrado no PATH. Instale o App Installer da Microsoft Store antes de continuar."
+    }
+
+    Write-Host "Instalando Visual Studio Build Tools (workload C++). Isso baixa varios GB, pode demorar." -ForegroundColor Yellow
+    winget install --id Microsoft.VisualStudio.2022.BuildTools -e --source winget `
+        --accept-source-agreements --accept-package-agreements --force `
+        --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+
+    $vcToolsPath = & $vswhere -all -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+    if (-not $vcToolsPath) {
+        throw "Falha ao instalar o Visual Studio Build Tools (workload C++ nao encontrado apos a instalacao)."
+    }
+    Write-Host "Visual Studio Build Tools instalado." -ForegroundColor Green
+}
+
+function Install-KdeCraft {
+    Write-Step "Instalando o KDE Craft em $CraftRoot"
+
+    # O vcvarsall.bat da Microsoft chama "vswhere.exe" assumindo que esta no
+    # PATH, mas ele so existe em Get-VsWhereDir. Sem isso, o bootstrap do
+    # Craft falha ao capturar as variaveis de ambiente do MSVC.
+    $vsWhereDir = Get-VsWhereDir
+    if ($env:PATH -notlike "*$vsWhereDir*") {
+        $env:PATH = "$vsWhereDir;" + $env:PATH
+    }
+
+    if (Test-Path (Join-Path $CraftRoot "craft\craftenv.ps1")) {
+        Write-Host "KDE Craft ja instalado em $CraftRoot." -ForegroundColor Green
+        return
+    }
+
+    if (-not (Test-CommandExists python)) {
+        throw "python nao encontrado no PATH. Instale o Python 3.10+ antes de continuar."
+    }
+
+    New-Item -ItemType Directory -Force -Path (Join-Path $CraftRoot "download") | Out-Null
+    $bootstrapScript = Join-Path $CraftRoot "download\CraftBootstrap.py"
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/KDE/craft/master/setup/CraftBootstrap.py" -OutFile $bootstrapScript
+
+    $pythonExe = (Get-Command python).Source
+    & $pythonExe $bootstrapScript --prefix $CraftRoot --branch master --use-defaults
+
+    if (-not (Test-Path (Join-Path $CraftRoot "craft\craftenv.ps1"))) {
+        throw "Falha ao instalar o KDE Craft."
+    }
+    Write-Host "KDE Craft instalado em $CraftRoot." -ForegroundColor Green
+}
+
+function Set-KdenliveBlueprintOverride {
+    Write-Step "Configurando blueprint customizado do Kdenlive (fork com D-Bus)"
+
+    $blueprintDir = Join-Path $CraftRoot "etc\blueprints\locations\craft-blueprints-kde\kde\kdemultimedia\kdenlive"
+    if (-not (Test-Path $blueprintDir)) {
+        throw "Blueprint do kdenlive nao encontrado em $blueprintDir. O Craft foi instalado corretamente?"
+    }
+
+    # version.ini: aponta a origem git para o fork com os patches de build
+    # Windows/MSVC e a API D-Bus expandida.
+    $versionIni = Join-Path $blueprintDir "version.ini"
+    $versionIniContent = @"
+[General]
+name = kdenlive-dbus-fork
+
+branches = $KdenliveForkBranch
+defaulttarget = $KdenliveForkBranch
+
+gitUrl = $KdenliveForkRepo
+gitUpdatedRepoUrl = $KdenliveForkRepo
+"@
+    Set-ContentNoBom $versionIni $versionIniContent
+
+    # kdenlive.py: forca -DUSE_DBUS=ON em qualquer plataforma (o blueprint
+    # padrao so habilita no Linux). Sem efeito se o fork ja tiver isso fixo.
+    # Precisa ficar sem BOM -- e um arquivo Python, e o Craft o importa com
+    # o interpretador Python puro, que nao tolera um BOM UTF-8 no topo.
+    $blueprintPy = Join-Path $blueprintDir "kdenlive.py"
+    $content = Get-Content $blueprintPy -Raw
+    $content = $content -replace 'f"-DUSE_DBUS=\{CraftCore\.compiler\.isLinux\.asOnOff\}"', '"-DUSE_DBUS=ON"'
+    Set-ContentNoBom $blueprintPy $content
+
+    Write-Host "Blueprint configurado: $KdenliveForkRepo ($KdenliveForkBranch)" -ForegroundColor Green
+}
+
+function Build-KdenliveWithDbus {
+    Install-VSBuildTools
+    Install-KdeCraft
+    Set-KdenliveBlueprintOverride
+
+    Write-Step "Compilando o Kdenlive via Craft (pode levar 30-60+ minutos na primeira vez)"
+
+    $vsWhereDir = Get-VsWhereDir
+    if ($env:PATH -notlike "*$vsWhereDir*") {
+        $env:PATH = "$vsWhereDir;" + $env:PATH
+    }
+
+    $exePath = Join-Path $CraftRoot "bin\kdenlive.exe"
+    $exeExistedBefore = Test-Path $exePath
+    $beforeTimestamp = if ($exeExistedBefore) { (Get-Item $exePath).LastWriteTimeUtc } else { $null }
+
+    # craftenv.ps1 e "craft" imprimem avisos informativos no stderr (ex:
+    # "Found gcc in your PATH"). Com $ErrorActionPreference = "Stop" isso
+    # vira um NativeCommandError fatal mesmo quando o comando teve sucesso
+    # (limitacao conhecida do PowerShell 5.1 ao redirecionar stderr de exes
+    # nativos). Relaxamos a preferencia so para esta secao.
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        . (Join-Path $CraftRoot "craft\craftenv.ps1")
+        craft kdenlive
+    } finally {
+        $ErrorActionPreference = $previousEap
+    }
+
+    if (-not (Test-Path $exePath)) {
+        throw "Build concluido mas kdenlive.exe nao foi encontrado em $exePath."
+    }
+    # kdenlive.exe pode ja existir de um build anterior -- so declarar
+    # sucesso se ele realmente foi (re)gerado agora.
+    $afterTimestamp = (Get-Item $exePath).LastWriteTimeUtc
+    if ($exeExistedBefore -and $afterTimestamp -eq $beforeTimestamp) {
+        throw "craft kdenlive nao atualizou kdenlive.exe -- o build provavelmente falhou. Veja a saida acima para o erro real."
+    }
+
+    Write-Step "Resumo do build"
+    Write-Host "kdenlive.exe:  $exePath" -ForegroundColor Green
+    Write-Host "Para rodar com D-Bus, defina antes de abrir o Kdenlive:" -ForegroundColor Cyan
+    Write-Host "  `$env:PATH = `"$CraftRoot\bin;`" + `$env:PATH"
+    Write-Host "  `$env:DBUS_SESSION_BUS_ADDRESS = `"autolaunch:scope=*install-path`""
+    Write-Host "  & `"$exePath`""
 }
 
 # ---------------------------------------------------------------------------
@@ -207,11 +377,13 @@ function Install-Mcp {
 function Show-Menu {
     Write-Host ""
     Write-Host "=== Instalador mcp-kdenlive ===" -ForegroundColor Cyan
-    Write-Host "1. Instalar Kdenlive (winget)"
+    Write-Host "1. Instalar Kdenlive oficial (winget, sem D-Bus)"
     Write-Host "2. Instalar MCP (tudo que o MCP precisa para funcionar)"
-    Write-Host "3. Instalar tudo (Kdenlive + MCP)"
+    Write-Host "3. Instalar tudo (Kdenlive oficial + MCP)"
+    Write-Host "4. Compilar Kdenlive com suporte D-Bus (fork, via KDE Craft)"
+    Write-Host "5. Instalar tudo com D-Bus (MCP + build do fork) [Recomendado]"
     Write-Host ""
-    return Read-Host "Escolha uma opcao [1-3]"
+    return Read-Host "Escolha uma opcao [1-5]"
 }
 
 if (-not $Action) {
@@ -222,7 +394,9 @@ switch ($Action) {
     "1" { Install-Kdenlive }
     "2" { Install-Mcp }
     "3" { Install-Kdenlive; Install-Mcp }
-    default { throw "Opcao invalida: '$Action'. Use 1, 2 ou 3." }
+    "4" { Build-KdenliveWithDbus }
+    "5" { Install-Mcp; Build-KdenliveWithDbus }
+    default { throw "Opcao invalida: '$Action'. Use 1 a 5." }
 }
 
 Write-Host ""
