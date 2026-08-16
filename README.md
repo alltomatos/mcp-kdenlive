@@ -92,6 +92,28 @@ O fork [alltomatos/kdenlive](https://github.com/alltomatos/kdenlive/tree/dbus-sc
 
 Contribuições adicionando esses como ferramentas MCP em `mcp_kdenlive/tools/` são bem-vindas.
 
+## Skill do Claude (conhecimento de edição de vídeo)
+
+Este repositório também traz uma [Claude Agent Skill](https://docs.claude.com/en/docs/claude-code/skills) chamada `kdenlive-video-editor`, que dá ao agente conhecimento completo de edição de vídeo com o Kdenlive: referência de todas as ferramentas do MCP, dicas e truques do Kdenlive, técnicas de retenção pra YouTube, técnicas de corte de clipes curtos pra Instagram/TikTok/X, e como diferenciar edição de vídeo de treinamento/corporativo de edição de vídeo viral pra redes sociais. Fonte em [.claude/skills/kdenlive-video-editor](.claude/skills/kdenlive-video-editor); pacote pronto para instalar em [kdenlive-video-editor.skill](kdenlive-video-editor.skill).
+
+### Instalar no Claude Code
+
+Copie a pasta da skill para o diretório de skills do usuário (funciona em qualquer projeto, não só neste):
+
+```powershell
+Copy-Item -Recurse -Force ".claude\skills\kdenlive-video-editor" "$env:USERPROFILE\.claude\skills\kdenlive-video-editor"
+```
+
+```bash
+cp -r .claude/skills/kdenlive-video-editor ~/.claude/skills/kdenlive-video-editor
+```
+
+Ou, se você já clonou este repositório para trabalhar nele, a skill já fica disponível automaticamente no escopo do projeto (via `.claude/skills/`) sem precisar copiar nada.
+
+### Instalar o pacote `.skill`
+
+Se você usa uma interface (claude.ai, app) que aceita upload de arquivo `.skill`, use o [kdenlive-video-editor.skill](kdenlive-video-editor.skill) — é o mesmo conteúdo empacotado num único arquivo, gerado com o `skill-creator`.
+
 ## Repositórios relacionados
 
 - [kdenlive-api](https://github.com/alltomatos/kdenlive-api) — API Python compatível com o DaVinci Resolve
