@@ -109,7 +109,10 @@ function Install-Git {
     }
 
     Write-Host "git nao encontrado -- instalando via winget (Git.Git)..." -ForegroundColor Yellow
-    winget install --id Git.Git -e --source winget --accept-source-agreements --accept-package-agreements
+    # winget e um exe nativo: sua saida nao capturada vira parte do "return"
+    # da funcao PowerShell que o chama, corrompendo qualquer $x = Funcao(...)
+    # mais adiante. Out-Host imprime ao vivo sem poluir o pipeline.
+    winget install --id Git.Git -e --source winget --accept-source-agreements --accept-package-agreements | Out-Host
 
     Update-SessionPath
     if (-not (Test-CommandExists git)) {
@@ -144,7 +147,7 @@ function Install-Python {
     }
 
     Write-Host "python nao encontrado (ou e so o stub da Microsoft Store) -- instalando via winget (Python.Python.3.11)..." -ForegroundColor Yellow
-    winget install --id Python.Python.3.11 -e --source winget --accept-source-agreements --accept-package-agreements
+    winget install --id Python.Python.3.11 -e --source winget --accept-source-agreements --accept-package-agreements | Out-Host
 
     Update-SessionPath
     if (-not (Test-PythonWorks)) {
@@ -180,7 +183,7 @@ function Install-7Zip {
     }
 
     Write-Host "7-Zip nao encontrado -- instalando via winget (7zip.7zip)..." -ForegroundColor Yellow
-    winget install --id 7zip.7zip -e --source winget --accept-source-agreements --accept-package-agreements
+    winget install --id 7zip.7zip -e --source winget --accept-source-agreements --accept-package-agreements | Out-Host
 
     Update-SessionPath
     $installed = Get-7ZipExe
@@ -301,7 +304,11 @@ function Install-KdenlivePortable {
     $archivePath = Join-Path $env:TEMP "kdenlive-dbus-windows-x86_64.7z"
 
     Write-Host "Baixando de $KdenlivePortableUrl ..."
-    Invoke-WebRequest -Uri $KdenlivePortableUrl -OutFile $archivePath
+    try {
+        Invoke-WebRequest -Uri $KdenlivePortableUrl -OutFile $archivePath
+    } catch {
+        throw "Falha ao baixar o pacote portatil: $($_.Exception.Message)`n`nBaixe manualmente em: $KdenlivePortableUrl`nSalve como: $archivePath`nExtraia com 7-Zip para: $KdenlivePortableRoot"
+    }
 
     Write-Host "Extraindo para $KdenlivePortableRoot ..."
     # Um SFX 7zCon.sfx (auto-extraivel) foi testado antes deste pacote --
@@ -310,7 +317,7 @@ function Install-KdenlivePortable {
     # validado como confiavel.
     $out = & $sevenZip x -y -o"$KdenlivePortableRoot" $archivePath 2>&1
     if ($LASTEXITCODE -ne 0) {
-        throw "Falha ao extrair o pacote portatil (codigo $LASTEXITCODE): $out"
+        throw "Falha ao extrair o pacote portatil (codigo $LASTEXITCODE): $out`n`nO arquivo baixado ficou em: $archivePath`nExtraia manualmente com 7-Zip para: $KdenlivePortableRoot"
     }
     Remove-Item $archivePath -Force
 
@@ -347,7 +354,7 @@ function Install-VSBuildTools {
     Write-Host "Instalando Visual Studio Build Tools (workload C++). Isso baixa varios GB, pode demorar." -ForegroundColor Yellow
     winget install --id Microsoft.VisualStudio.2022.BuildTools -e --source winget `
         --accept-source-agreements --accept-package-agreements --force `
-        --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+        --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended" | Out-Host
 
     $vcToolsPath = & $vswhere -all -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
     if (-not $vcToolsPath) {
@@ -521,21 +528,16 @@ Write-Host "=== Instalador mcp-kdenlive ===" -ForegroundColor Cyan
 
 Install-Mcp
 
-$kdenliveExe = $null
-if (-not $ForceBuild) {
-    try {
-        $kdenliveExe = Install-KdenlivePortable
-        $kdenliveBinDir = Split-Path $kdenliveExe -Parent
-    } catch {
-        Write-Host ""
-        Write-Host "Download do portatil falhou ($($_.Exception.Message)) -- caindo para build via KDE Craft (~30-60min)." -ForegroundColor Yellow
-    }
-}
-
-if (-not $kdenliveExe) {
+if ($ForceBuild) {
     Write-Host "Compilando o Kdenlive via KDE Craft. Isso pode levar 30-60+ minutos na primeira vez." -ForegroundColor Cyan
     $kdenliveExe = Build-KdenliveWithDbus
     $kdenliveBinDir = Join-Path $CraftRoot "bin"
+} else {
+    # Sem fallback silencioso para o build via Craft: se o portatil falhar,
+    # o script para aqui e mostra onde esta o arquivo para instalar na mao,
+    # em vez de embarcar numa compilacao de 30-60min sem o usuario pedir.
+    $kdenliveExe = Install-KdenlivePortable
+    $kdenliveBinDir = Split-Path $kdenliveExe -Parent
 }
 
 New-KdenliveDesktopShortcut $kdenliveExe $kdenliveBinDir
