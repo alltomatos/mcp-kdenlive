@@ -19,7 +19,8 @@ iex "& { $(irm https://raw.githubusercontent.com/alltomatos/mcp-kdenlive/main/sc
 Sem menu, sem opções — o script instala tudo como um pacote único:
 
 1. Instala o MCP (clona `mcp-kdenlive` + `kdenlive-api`, cria o virtualenv, gera o `.mcp.json`)
-2. Baixa o [Kdenlive portátil pré-compilado com D-Bus](https://github.com/alltomatos/kdenlive/releases) (fork [alltomatos/kdenlive](https://github.com/alltomatos/kdenlive/tree/dbus-scripting-windows)) e extrai — leva só alguns minutos. Se o download falhar por qualquer motivo, cai automaticamente para compilar do zero via KDE Craft (processo longo, 30-60+ min: instala Visual Studio Build Tools, KDE Craft, e compila)
+2. Instala o 7-Zip via winget (se ainda não tiver) e baixa o [Kdenlive portátil pré-compilado com D-Bus](https://github.com/alltomatos/kdenlive/releases) (fork [alltomatos/kdenlive](https://github.com/alltomatos/kdenlive/tree/dbus-scripting-windows)) — leva só alguns minutos. Se o download/extração falhar por qualquer motivo, cai automaticamente para compilar do zero via KDE Craft (processo longo, 30-60+ min: instala Visual Studio Build Tools, KDE Craft, e compila)
+3. Cria um atalho **"Kdenlive (MCP)"** na área de trabalho que já abre com as variáveis de ambiente do D-Bus configuradas
 
 Não existe opção para instalar o Kdenlive "oficial" (winget): esse pacote não tem a API de scripting via D-Bus, então seria inútil para o MCP.
 
@@ -45,7 +46,7 @@ Adicione ao seu `.mcp.json`:
 - Python 3.10+
 - [kdenlive-api](https://github.com/alltomatos/kdenlive-api)
 - [MCP SDK](https://pypi.org/project/mcp/) (`mcp>=1.0.0`)
-- [Kdenlive (fork com patch)](https://github.com/alltomatos/kdenlive/tree/dbus-scripting-windows) em execução, com a API de scripting via D-Bus (no Windows, o `script.ps1` baixa o [build portátil](https://github.com/alltomatos/kdenlive/releases) automaticamente, ou compila via KDE Craft se preciso)
+- [Kdenlive (fork com patch)](https://github.com/alltomatos/kdenlive/tree/dbus-scripting-windows) em execução, com a API de scripting via D-Bus (no Windows, o `script.ps1` baixa e extrai o [build portátil](https://github.com/alltomatos/kdenlive/releases) automaticamente via 7-Zip, ou compila via KDE Craft se preciso)
 
 ```bash
 pip install -r requirements.txt

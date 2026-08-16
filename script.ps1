@@ -10,6 +10,8 @@
          fork alltomatos/kdenlive) e extrai -- rapido, poucos minutos.
          Se o download/extracao falhar por qualquer motivo, cai para
          compilar do zero via KDE Craft (processo longo, ~30-60min).
+      3. Cria um atalho "Kdenlive (MCP)" na area de trabalho que ja abre
+         com as variaveis de ambiente do D-Bus configuradas.
 
     Etapas do MCP:
       - Cria C:\kdenlive
@@ -18,9 +20,12 @@
       - Gera um .mcp.json de exemplo apontando para o servidor
 
     Etapas do Kdenlive (portatil, caminho padrao):
-      - Baixa o .zip do release mais recente em
+      - Instala o 7-Zip via winget, se ainda nao estiver presente (usado so
+        para extrair; um SFX 7zCon.sfx foi testado antes mas corrompe
+        arquivos silenciosamente neste pacote -- ver nota no codigo)
+      - Baixa o .7z do release mais recente em
         https://github.com/alltomatos/kdenlive/releases
-      - Extrai em C:\kdenlive\kdenlive-portable
+      - Extrai com 7z.exe em C:\kdenlive\kdenlive-portable
 
     Etapas do build com D-Bus (fallback, ou com -ForceBuild):
       - Instala o Visual Studio Build Tools (workload C++) via winget, se
@@ -56,7 +61,7 @@ param(
     [string]$CraftRoot = "C:\CraftRoot",
     [string]$KdenliveForkRepo = "https://github.com/alltomatos/kdenlive.git",
     [string]$KdenliveForkBranch = "dbus-scripting-windows",
-    [string]$KdenlivePortableUrl = "https://github.com/alltomatos/kdenlive/releases/latest/download/kdenlive-dbus-windows-x86_64.zip",
+    [string]$KdenlivePortableUrl = "https://github.com/alltomatos/kdenlive/releases/latest/download/kdenlive-dbus-windows-x86_64.7z",
     [string]$KdenlivePortableRoot = "C:\kdenlive\kdenlive-portable",
     [switch]$ForceBuild
 )
@@ -146,6 +151,44 @@ function Install-Python {
         throw "Python instalado via winget mas 'python' ainda nao funciona nesta sessao (pode ser o alias da Microsoft Store tomando prioridade no PATH). Feche e reabra o PowerShell e rode o script de novo, ou desative o alias em Configuracoes > Aplicativos > Aliases de execucao de aplicativos avancados."
     }
     Write-Host "python instalado: $(python --version)" -ForegroundColor Green
+}
+
+function Get-7ZipExe {
+    $candidates = @(
+        "C:\Program Files\7-Zip\7z.exe",
+        "C:\Program Files (x86)\7-Zip\7z.exe"
+    )
+    foreach ($c in $candidates) {
+        if (Test-Path $c) { return $c }
+    }
+    $onPath = Get-Command 7z.exe -ErrorAction SilentlyContinue
+    if ($onPath) { return $onPath.Source }
+    return $null
+}
+
+function Install-7Zip {
+    Write-Step "Verificando o 7-Zip"
+
+    $existing = Get-7ZipExe
+    if ($existing) {
+        Write-Host "7-Zip: OK ($existing)" -ForegroundColor Green
+        return $existing
+    }
+
+    if (-not (Test-CommandExists winget)) {
+        throw "7-Zip nao encontrado, e winget tambem nao esta disponivel para instala-lo. Instale o 7-Zip manualmente antes de continuar."
+    }
+
+    Write-Host "7-Zip nao encontrado -- instalando via winget (7zip.7zip)..." -ForegroundColor Yellow
+    winget install --id 7zip.7zip -e --source winget --accept-source-agreements --accept-package-agreements
+
+    Update-SessionPath
+    $installed = Get-7ZipExe
+    if (-not $installed) {
+        throw "7-Zip instalado via winget mas 7z.exe nao foi encontrado. Feche e reabra o PowerShell e rode o script de novo."
+    }
+    Write-Host "7-Zip instalado: $installed" -ForegroundColor Green
+    return $installed
 }
 
 # ---------------------------------------------------------------------------
@@ -252,19 +295,24 @@ function Install-KdenlivePortable {
         return $exePath
     }
 
+    $sevenZip = Install-7Zip
+
     New-Item -ItemType Directory -Force -Path $KdenlivePortableRoot | Out-Null
-    $zipPath = Join-Path $env:TEMP "kdenlive-dbus-windows-x86_64.zip"
+    $archivePath = Join-Path $env:TEMP "kdenlive-dbus-windows-x86_64.7z"
 
     Write-Host "Baixando de $KdenlivePortableUrl ..."
-    Invoke-WebRequest -Uri $KdenlivePortableUrl -OutFile $zipPath
+    Invoke-WebRequest -Uri $KdenlivePortableUrl -OutFile $archivePath
 
     Write-Host "Extraindo para $KdenlivePortableRoot ..."
-    # Expand-Archive e absurdamente lento com milhares de arquivos pequenos no
-    # PowerShell 5.1 (>20min para este pacote). ZipFile.ExtractToDirectory faz
-    # o mesmo em segundos.
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $KdenlivePortableRoot)
-    Remove-Item $zipPath -Force
+    # Um SFX 7zCon.sfx (auto-extraivel) foi testado antes deste pacote --
+    # corrompeu arquivos silenciosamente sem erro no exit code nem no log
+    # (tamanhos batiam, alguns bytes nao). 7z.exe direto e o metodo
+    # validado como confiavel.
+    $out = & $sevenZip x -y -o"$KdenlivePortableRoot" $archivePath 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falha ao extrair o pacote portatil (codigo $LASTEXITCODE): $out"
+    }
+    Remove-Item $archivePath -Force
 
     if (-not (Test-Path $exePath)) {
         throw "kdenlive.exe nao encontrado em $exePath apos extrair o pacote portatil."
@@ -421,6 +469,38 @@ function Build-KdenliveWithDbus {
 }
 
 # ---------------------------------------------------------------------------
+# Atalho na area de trabalho
+# ---------------------------------------------------------------------------
+function New-KdenliveDesktopShortcut($kdenliveExePath, $kdenliveBinPath) {
+    Write-Step "Criando atalho na area de trabalho"
+
+    # kdenlive.exe sozinho nao tem as variaveis de ambiente do D-Bus. O
+    # atalho aponta para um .cmd lancador que configura o ambiente e so
+    # entao abre o Kdenlive.
+    $launcherPath = Join-Path (Split-Path $kdenliveBinPath -Parent) "Launch-Kdenlive.cmd"
+    $launcherContent = @"
+@echo off
+set "PATH=$kdenliveBinPath;%PATH%"
+set "DBUS_SESSION_BUS_ADDRESS=autolaunch:scope=*install-path"
+start "" "$kdenliveExePath"
+"@
+    Set-ContentNoBom $launcherPath $launcherContent
+
+    $desktop = [Environment]::GetFolderPath("Desktop")
+    $shortcutPath = Join-Path $desktop "Kdenlive (MCP).lnk"
+
+    $shell = New-Object -ComObject WScript.Shell
+    $shortcut = $shell.CreateShortcut($shortcutPath)
+    $shortcut.TargetPath = $launcherPath
+    $shortcut.WorkingDirectory = Split-Path $kdenliveExePath -Parent
+    $shortcut.IconLocation = $kdenliveExePath
+    $shortcut.Description = "Kdenlive com API de scripting D-Bus (para o MCP)"
+    $shortcut.Save()
+
+    Write-Host "Atalho criado: $shortcutPath" -ForegroundColor Green
+}
+
+# ---------------------------------------------------------------------------
 # Instalacao completa, sem menu -- MCP + Kdenlive com D-Bus
 # ---------------------------------------------------------------------------
 Write-Host ""
@@ -445,9 +525,12 @@ if (-not $kdenliveExe) {
     $kdenliveBinDir = Join-Path $CraftRoot "bin"
 }
 
+New-KdenliveDesktopShortcut $kdenliveExe $kdenliveBinDir
+
 Write-Step "Resumo"
 Write-Host "kdenlive.exe:  $kdenliveExe" -ForegroundColor Green
-Write-Host "Para rodar com D-Bus, defina antes de abrir o Kdenlive:" -ForegroundColor Cyan
+Write-Host "Atalho:        Kdenlive (MCP) na area de trabalho" -ForegroundColor Green
+Write-Host "Para rodar com D-Bus manualmente (sem o atalho):" -ForegroundColor Cyan
 Write-Host "  `$env:PATH = `"$kdenliveBinDir;`" + `$env:PATH"
 Write-Host "  `$env:DBUS_SESSION_BUS_ADDRESS = `"autolaunch:scope=*install-path`""
 Write-Host "  & `"$kdenliveExe`""
