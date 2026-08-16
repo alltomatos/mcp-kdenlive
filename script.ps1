@@ -111,8 +111,11 @@ function Install-Git {
     Write-Host "git nao encontrado -- instalando via winget (Git.Git)..." -ForegroundColor Yellow
     # winget e um exe nativo: sua saida nao capturada vira parte do "return"
     # da funcao PowerShell que o chama, corrompendo qualquer $x = Funcao(...)
-    # mais adiante. Out-Host imprime ao vivo sem poluir o pipeline.
-    winget install --id Git.Git -e --source winget --accept-source-agreements --accept-package-agreements | Out-Host
+    # mais adiante. O spinner/barra de progresso do winget usa \r para
+    # sobrescrever a mesma linha; passando por um pipe do PowerShell (mesmo
+    # Out-Host) isso quebra e cada frame vira uma linha nova empilhada. Mais
+    # simples suprimir com Out-Null -- ja mostramos nossa propria mensagem.
+    winget install --id Git.Git -e --source winget --accept-source-agreements --accept-package-agreements | Out-Null
 
     Update-SessionPath
     if (-not (Test-CommandExists git)) {
@@ -147,7 +150,7 @@ function Install-Python {
     }
 
     Write-Host "python nao encontrado (ou e so o stub da Microsoft Store) -- instalando via winget (Python.Python.3.11)..." -ForegroundColor Yellow
-    winget install --id Python.Python.3.11 -e --source winget --accept-source-agreements --accept-package-agreements | Out-Host
+    winget install --id Python.Python.3.11 -e --source winget --accept-source-agreements --accept-package-agreements | Out-Null
 
     Update-SessionPath
     if (-not (Test-PythonWorks)) {
@@ -183,7 +186,7 @@ function Install-7Zip {
     }
 
     Write-Host "7-Zip nao encontrado -- instalando via winget (7zip.7zip)..." -ForegroundColor Yellow
-    winget install --id 7zip.7zip -e --source winget --accept-source-agreements --accept-package-agreements | Out-Host
+    winget install --id 7zip.7zip -e --source winget --accept-source-agreements --accept-package-agreements | Out-Null
 
     Update-SessionPath
     $installed = Get-7ZipExe
@@ -354,7 +357,7 @@ function Install-VSBuildTools {
     Write-Host "Instalando Visual Studio Build Tools (workload C++). Isso baixa varios GB, pode demorar." -ForegroundColor Yellow
     winget install --id Microsoft.VisualStudio.2022.BuildTools -e --source winget `
         --accept-source-agreements --accept-package-agreements --force `
-        --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended" | Out-Host
+        --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended" | Out-Null
 
     $vcToolsPath = & $vswhere -all -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
     if (-not $vcToolsPath) {
