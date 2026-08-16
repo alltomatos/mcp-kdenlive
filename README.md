@@ -14,32 +14,8 @@ Execute no PowerShell:
 iex "& { $(irm https://raw.githubusercontent.com/alltomatos/mcp-kdenlive/main/script.ps1) }"
 ```
 
-(O `& { ... }` isola o script num escopo próprio — sem isso, `irm | iex` roda o `param()` do script direto na sessão atual e pode falhar com `MetadataError` se já existir uma variável `$Action` no shell.)
+1. Instala o MCP + `mcp-kdenlive` + `kdenlive-api`, cria o virtualenv, gera o `.mcp.json`)
 
-Sem menu, sem opções — o script instala tudo como um pacote único:
-
-1. Instala o MCP (clona `mcp-kdenlive` + `kdenlive-api`, cria o virtualenv, gera o `.mcp.json`)
-2. Instala o 7-Zip via winget (se ainda não tiver) e baixa o [Kdenlive portátil pré-compilado com D-Bus](https://github.com/alltomatos/kdenlive/releases) (fork [alltomatos/kdenlive](https://github.com/alltomatos/kdenlive/tree/dbus-scripting-windows)) — leva só alguns minutos. Se o download/extração falhar por qualquer motivo, cai automaticamente para compilar do zero via KDE Craft (processo longo, 30-60+ min: instala Visual Studio Build Tools, KDE Craft, e compila)
-3. Cria um atalho **"Kdenlive (MCP)"** na área de trabalho que já abre com as variáveis de ambiente do D-Bus configuradas
-
-Não existe opção para instalar o Kdenlive "oficial" (winget): esse pacote não tem a API de scripting via D-Bus, então seria inútil para o MCP.
-
-Para pular direto para o build do zero (ex: para pegar patches mais recentes ainda não publicados como release), use `-ForceBuild`. Ver [script.ps1](script.ps1) para os demais parâmetros (`-InstallRoot`, `-McpRepo`, `-ApiRepo`, `-CraftRoot`, `-KdenliveForkRepo`, `-KdenliveForkBranch`, `-KdenlivePortableUrl`, `-KdenlivePortableRoot`, `-ProjectMcpJsonPath`).
-
-### Manual
-
-Adicione ao seu `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "kdenlive": {
-      "command": "python",
-      "args": ["-m", "mcp_kdenlive"]
-    }
-  }
-}
-```
 
 ## Requisitos
 
