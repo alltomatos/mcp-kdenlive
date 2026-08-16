@@ -34,8 +34,12 @@
         KDE e compila so o Kdenlive)
 
 .NOTES
-    Requer: git, python 3.10+ no PATH. winget so e necessario se cair no
-    fallback de build (Visual Studio Build Tools).
+    Pre-requisitos: nenhum precisa estar pre-instalado. git e python 3.10+
+    sao instalados automaticamente via winget se nao estiverem no PATH (ou
+    se "python" for so o stub da Microsoft Store). winget em si (App
+    Installer) normalmente ja vem no Windows 10 21H2+/11; se nao existir,
+    o script para com instrucoes -- nao ha como instala-lo via script sem
+    interacao com a Microsoft Store.
     Nao ha instalacao do Kdenlive "oficial" via winget -- o pacote oficial nao
     tem a API de scripting via D-Bus, entao seria inutil para o MCP.
 
@@ -109,6 +113,41 @@ function Install-Git {
     Write-Host "git instalado: $(git --version)" -ForegroundColor Green
 }
 
+function Test-PythonWorks {
+    # No Windows, "python" pode existir no PATH como um App Execution Alias
+    # da Microsoft Store que so imprime um aviso e nao roda nada -- Get-Command
+    # acha esse stub e mente que "python existe". Confirma checando a saida.
+    if (-not (Test-CommandExists python)) { return $false }
+    try {
+        $out = & python --version 2>&1
+        return ($LASTEXITCODE -eq 0) -and ($out -match "^Python \d")
+    } catch {
+        return $false
+    }
+}
+
+function Install-Python {
+    Write-Step "Verificando o Python"
+
+    if (Test-PythonWorks) {
+        Write-Host "python: OK ($(python --version))" -ForegroundColor Green
+        return
+    }
+
+    if (-not (Test-CommandExists winget)) {
+        throw "python nao encontrado no PATH, e winget tambem nao esta disponivel para instala-lo. Instale o Python 3.10+ manualmente antes de continuar."
+    }
+
+    Write-Host "python nao encontrado (ou e so o stub da Microsoft Store) -- instalando via winget (Python.Python.3.11)..." -ForegroundColor Yellow
+    winget install --id Python.Python.3.11 -e --source winget --accept-source-agreements --accept-package-agreements
+
+    Update-SessionPath
+    if (-not (Test-PythonWorks)) {
+        throw "Python instalado via winget mas 'python' ainda nao funciona nesta sessao (pode ser o alias da Microsoft Store tomando prioridade no PATH). Feche e reabra o PowerShell e rode o script de novo, ou desative o alias em Configuracoes > Aplicativos > Aliases de execucao de aplicativos avancados."
+    }
+    Write-Host "python instalado: $(python --version)" -ForegroundColor Green
+}
+
 # ---------------------------------------------------------------------------
 # Instalar o MCP (tudo que ele precisa para funcionar)
 # ---------------------------------------------------------------------------
@@ -116,12 +155,7 @@ function Install-Mcp {
     Write-Step "Verificando pre-requisitos do MCP"
 
     Install-Git
-
-    if (-not (Test-CommandExists python)) {
-        throw "python nao encontrado no PATH. Instale o Python 3.10+ antes de continuar."
-    }
-
-    Write-Host "python: $(python --version)"
+    Install-Python
 
     # -- Criar pasta de instalacao ------------------------------------------
     Write-Step "Criando pasta de instalacao: $InstallRoot"
