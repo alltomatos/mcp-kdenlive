@@ -43,7 +43,7 @@ Só pular direto pra etapa 2 quando o pedido já for puramente mecânico (ex: "a
 1. Leia `short-form-clips.md` inteiro antes de começar — a seleção de momentos e a estrutura do clipe são o que decide se funciona, não a mecânica de corte em si.
 2. Se houver transcrição disponível, use-a pra identificar candidatos (picos emocionais, quotable moments, insights, humor — critérios detalhados na referência). Sem transcrição, use `render_contact_sheet`/`detect_scenes` e assista trechos pra escanear.
 3. Pra cada momento aprovado: `add_marker` colorido no ponto, depois `set_zone_in`/`set_zone_out`/`extract_zone` pra isolar o trecho.
-4. Reframe pra 9:16 se o destino for vertical (nova sequência/perfil de projeto — ver `mcp-tools.md`), com o sujeito/rosto enquadrado (posição/zoom via keyframes, ou `add_effect` de motion tracking se o sujeito se move).
+4. Reframe pra 9:16 se o destino for vertical — `create_project_profile` (1080x1920) pra um perfil vertical sem mexer no projeto horizontal existente, nova sequência nesse perfil, sujeito/rosto enquadrado (posição/zoom via keyframes, ou `add_effect` de motion tracking se o sujeito se move). Ver `mcp-tools.md` e `short-form-clips.md`.
 5. Legenda queimada é quase sempre necessária — `add_subtitle` com estilo de alto contraste (ver seção de legendas em `kdenlive-tips.md` e `short-form-clips.md`).
 6. Confirme que o hook dos primeiros 1-3s está forte e que o clipe fecha o loop (ver `short-form-clips.md`) antes de considerar pronto.
 7. Pergunte ao usuário qual(is) plataforma(s) é o alvo — a duração-alvo e a intensidade do hook mudam por plataforma.

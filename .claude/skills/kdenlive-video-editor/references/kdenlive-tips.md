@@ -46,6 +46,7 @@
 **Color grading**
 - Efeitos básicos: Brightness/Contrast, Color Correction (curvas RGB), Lift/Gamma/Gain (roda de cores profissional), LUT.
 - Fluxo recomendado: correção primária (exposição/whitebalance) em toda a cena → grading criativo (LUT/curvas) em efeito **separado** pra poder desabilitar individualmente depois.
+- Grading que se aplica a **uma trilha inteira** (ex: nivelar todos os clipes de uma trilha de B-roll) usa `add_track_effect`, não `add_effect` clipe a clipe. Grading **final**, na saída já composta de todas as trilhas (ex: um LUT geral, um vinheteamento no vídeo inteiro), usa `add_master_effect` — é o equivalente ao "Master effects" do Kdenlive (área abaixo do monitor de projeto).
 
 **Blend modes**
 - Controlados via propriedade "Blend mode" da faixa/clipe (Normal, Add, Multiply, Screen, Overlay), combináveis com opacidade via keyframe — útil pra picture-in-picture e composições em camadas.
@@ -96,10 +97,11 @@
 - Preset de velocidade padrão libx264 é "slow"; trocar pra "medium" dá ~2x mais velocidade com perda mínima perceptível.
 - Para 4K/UHD, considerar **H.265 (HEVC)** — mais eficiente em bitrate. 10-bit (yuv420p10le) melhora qualidade percebida no mesmo bitrate.
 - Two-pass rendering pra controlar melhor o tamanho final do arquivo.
+- Se os presets padrão do Kdenlive não cobrem a combinação exata que você usa toda vez (ex: "YouTube H.264 CRF 20 medium"), vale salvar como preset custom com `create_render_preset` em vez de repassar os mesmos `params` em todo `render_video` — fica reutilizável e aparece em `get_render_presets`.
 
 **Redes sociais verticais (9:16)**
-- Não há preset vertical pronto — a prática é criar/editar o **Project Profile** com resolução vertical (ex. 1080x1920) antes de começar, ou usar um preset custom salvo. Via MCP: `set_project_profile`.
-- Aplicar o mesmo preset H.264 padrão (CRF 18-22) ajustado pra resolução vertical.
+- Não há preset vertical pronto — a prática é criar um **Project Profile** vertical (ex. 1080x1920) **antes** de montar a timeline vertical. Via MCP: `create_project_profile` (não `set_project_profile` — esse último altera o perfil do projeto atual in-place e destrói qualquer timeline horizontal que já exista nele).
+- Aplicar o mesmo preset H.264 padrão (CRF 18-22) ajustado pra resolução vertical — ou um `create_render_preset` dedicado, já que o vertical costuma ser recorrente (múltiplos clipes do mesmo projeto).
 - Manter frame rate consistente com a origem — evitar conversões de fps desnecessárias (causam judder).
 
 ## 7. Erros comuns de iniciantes

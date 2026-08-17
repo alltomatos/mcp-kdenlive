@@ -36,7 +36,7 @@
 - Casos difíceis que exigem ajuste manual: pans rápidos, múltiplos sujeitos na cena, ação nas bordas do frame, elementos de contexto importantes fora do centro (placar, tela compartilhada, texto na tela).
 - Split-screen ou blur de fundo (fundo desfocado expandindo o 16:9 original) são alternativas quando não há um sujeito único claro pra seguir.
 
-**No Kdenlive via MCP**: crie uma sequência 9:16 separada (`set_project_profile` com resolução vertical, ou nova sequência via `get_sequences`/`set_active_sequence`), reposicione o clipe original dentro dela com o efeito de posição/escala (`add_effect` + `set_effect_param`/`add_effect_keyframe` pra seguir o sujeito ao longo do tempo).
+**No Kdenlive via MCP**: use `create_project_profile` (width=1080, height=1920, fps_num=30) pra criar um perfil vertical **sem mexer no perfil horizontal já em uso** — diferente de `set_project_profile`, que altera o perfil do projeto atual in-place e bagunça qualquer timeline 16:9 que já exista nele. Com o perfil criado, monte a sequência vertical (nova sequência via `get_sequences`/`set_active_sequence`) e reposicione o clipe original dentro dela com o efeito de posição/escala (`add_effect` + `set_effect_param`/`add_effect_keyframe` pra seguir o sujeito ao longo do tempo).
 
 ## 4. Hook nos primeiros 1-3 segundos (específico de short-form)
 
