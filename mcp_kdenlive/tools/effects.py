@@ -72,6 +72,86 @@ def register(mcp, helpers):
             return f"ERROR: {e}"
 
     @mcp.tool()
+    def add_track_effect(ctx: Context, track_id: int, effect_id: str,
+                         params: dict[str, str] | None = None) -> str:
+        """Add an effect to an entire track (applies to everything on that track,
+        not just one clip). Use for track-wide color grading, track-wide audio
+        processing, etc.
+
+        Args:
+            track_id: Track ID (from get_track_list).
+            effect_id: MLT effect ID (e.g. "avfilter.eq", "normalize").
+            params: Optional parameter dict (key=value pairs).
+        """
+        try:
+            resolve = helpers.get_resolve(ctx)
+            ok = resolve._dbus.add_track_effect(track_id, effect_id, params)
+            if not ok:
+                return f"ERROR: Could not add effect '{effect_id}' to track {track_id}"
+            param_str = ""
+            if params:
+                param_str = " with " + ", ".join(f"{k}={v}" for k, v in params.items())
+            return f"Added effect '{effect_id}' to track {track_id}{param_str}"
+        except Exception as e:
+            return f"ERROR: {e}"
+
+    @mcp.tool()
+    def remove_track_effect(ctx: Context, track_id: int, effect_id: str) -> str:
+        """Remove an effect from a track.
+
+        Args:
+            track_id: Track ID (from get_track_list).
+            effect_id: MLT effect ID to remove.
+        """
+        try:
+            resolve = helpers.get_resolve(ctx)
+            ok = resolve._dbus.remove_track_effect(track_id, effect_id)
+            if not ok:
+                return f"ERROR: Could not remove effect '{effect_id}' from track {track_id}"
+            return f"Removed effect '{effect_id}' from track {track_id}"
+        except Exception as e:
+            return f"ERROR: {e}"
+
+    @mcp.tool()
+    def add_master_effect(ctx: Context, effect_id: str,
+                          params: dict[str, str] | None = None) -> str:
+        """Add an effect to the master/project bus — applies to the final
+        composited output, after all tracks are mixed. Use for final color
+        grading, master audio limiting/normalization, watermarks, etc.
+
+        Args:
+            effect_id: MLT effect ID (e.g. "avfilter.eq", "alimiter").
+            params: Optional parameter dict (key=value pairs).
+        """
+        try:
+            resolve = helpers.get_resolve(ctx)
+            ok = resolve._dbus.add_master_effect(effect_id, params)
+            if not ok:
+                return f"ERROR: Could not add master effect '{effect_id}'"
+            param_str = ""
+            if params:
+                param_str = " with " + ", ".join(f"{k}={v}" for k, v in params.items())
+            return f"Added master effect '{effect_id}'{param_str}"
+        except Exception as e:
+            return f"ERROR: {e}"
+
+    @mcp.tool()
+    def remove_master_effect(ctx: Context, effect_id: str) -> str:
+        """Remove an effect from the master/project bus.
+
+        Args:
+            effect_id: MLT effect ID to remove.
+        """
+        try:
+            resolve = helpers.get_resolve(ctx)
+            ok = resolve._dbus.remove_master_effect(effect_id)
+            if not ok:
+                return f"ERROR: Could not remove master effect '{effect_id}'"
+            return f"Removed master effect '{effect_id}'"
+        except Exception as e:
+            return f"ERROR: {e}"
+
+    @mcp.tool()
     def get_clip_effects(ctx: Context, clip_id: int) -> str:
         """List all effects on a timeline clip.
 

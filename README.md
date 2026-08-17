@@ -77,20 +77,12 @@ Modelo mental idêntico à API do DaVinci Resolve: `Resolve → ProjectManager �
 | Grupos | `group_clips`, `ungroup_clips`, `get_group_info`, `remove_from_group` |
 | Legendas | `get_subtitles`, `add_subtitle`, `edit_subtitle`, `delete_subtitle`, `export_subtitles`, `get_subtitle_styles`, `set_subtitle_style`, `delete_subtitle_style`, `set_subtitle_style_name` |
 | Seleção | `get_selection`, `set_selection`, `add_to_selection`, `clear_selection`, `select_all`, `select_current_track`, `select_items_in_range` |
+| Efeitos de trilha/master | `add_track_effect`, `remove_track_effect`, `add_master_effect`, `remove_master_effect` |
 | Playback | `seek_to`, `get_position`, `play`, `pause`, `get_playback_speed`, `set_playback_speed` |
-| Render | `get_render_presets`, `get_render_jobs`, `abort_render_job` |
-
-### Roadmap: API D-Bus expandida sem wrapper MCP ainda
-
-O fork [alltomatos/kdenlive](https://github.com/alltomatos/kdenlive/tree/dbus-scripting-windows) já expõe estes métodos D-Bus adicionais, mas eles **ainda não têm ferramenta MCP correspondente** (só chamáveis via `dbus._call(...)` cru no `kdenlive-api`):
-
-- Efeitos de trilha/master: `scriptAddTrackEffect`, `scriptRemoveTrackEffect`, `scriptAddMasterEffect`, `scriptRemoveMasterEffect`
-- Presets de render customizados: `scriptCreateRenderPreset`, `scriptDeleteRenderPreset`
-- Perfil de projeto customizado: `scriptCreateProjectProfile`
-- Notas do projeto: `scriptGetProjectNotes`, `scriptSetProjectNotes`
-- Backups: `scriptListBackups`, `scriptRestoreBackup`
-
-Contribuições adicionando esses como ferramentas MCP em `mcp_kdenlive/tools/` são bem-vindas.
+| Render | `get_render_presets`, `get_render_jobs`, `abort_render_job`, `create_render_preset`, `delete_render_preset` |
+| Perfil de projeto | `create_project_profile` |
+| Notas do projeto | `get_project_notes`, `set_project_notes` |
+| Backups | `list_backups`, `restore_backup` |
 
 ## Skill do Claude (conhecimento de edição de vídeo)
 

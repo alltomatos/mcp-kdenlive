@@ -202,6 +202,154 @@ def register(mcp, helpers):
             return f"ERROR: {e}"
 
     @mcp.tool()
+    def create_render_preset(ctx: Context, name: str, group_id: str, params: str,
+                             extension: str, v_bitrate: str = "", v_quality: str = "",
+                             a_bitrate: str = "", a_quality: str = "") -> str:
+        """Create a custom render preset (e.g. a specific YouTube or vertical export profile).
+
+        Once created, the preset shows up in get_render_presets and can be used
+        as render_video's preset_name.
+
+        Args:
+            name: Preset display name.
+            group_id: Group/category the preset appears under in the render dialog
+                      (e.g. "customcategory").
+            params: MLT consumer parameter string (e.g. "vcodec=libx264 acodec=aac crf=18").
+            extension: Output file extension without dot (e.g. "mp4").
+            v_bitrate: Video bitrate (e.g. "8000k"), leave empty if using crf/quality in params.
+            v_quality: Video quality/CRF value as string, leave empty if not applicable.
+            a_bitrate: Audio bitrate (e.g. "192k"), leave empty to use params default.
+            a_quality: Audio quality value as string, leave empty if not applicable.
+        """
+        try:
+            resolve = helpers.get_resolve(ctx)
+            saved_name = resolve._dbus.create_render_preset(
+                name, group_id, params, extension, v_bitrate, v_quality, a_bitrate, a_quality
+            )
+            if not saved_name:
+                return f"ERROR: Could not create render preset '{name}' (empty name or params?)"
+            return f"Created render preset: {saved_name}"
+        except Exception as e:
+            return f"ERROR: {e}"
+
+    @mcp.tool()
+    def delete_render_preset(ctx: Context, name: str) -> str:
+        """Delete a custom render preset by name.
+
+        Args:
+            name: Preset name (as shown in get_render_presets).
+        """
+        try:
+            resolve = helpers.get_resolve(ctx)
+            ok = resolve._dbus.delete_render_preset(name)
+            if not ok:
+                return f"ERROR: Could not delete render preset '{name}' (not found?)"
+            return f"Deleted render preset: {name}"
+        except Exception as e:
+            return f"ERROR: {e}"
+
+    @mcp.tool()
+    def create_project_profile(ctx: Context, width: int, height: int,
+                               fps_num: int, fps_den: int = 1, description: str = "",
+                               sample_aspect_num: int = 1, sample_aspect_den: int = 1,
+                               colorspace: int = 709, progressive: bool = True) -> str:
+        """Create a custom project profile, e.g. a 9:16 vertical profile for
+        Reels/TikTok/Shorts (width=1080, height=1920, fps_num=30).
+
+        Reuses a matching existing profile automatically if the same dimensions
+        and framerate were already registered. The returned path is a profile
+        identifier — pass it to open_project/set_project_profile-style workflows
+        or use it when creating a new sequence that needs this aspect ratio.
+
+        Args:
+            width: Frame width in pixels (e.g. 1080 for vertical, 1920 for horizontal).
+            height: Frame height in pixels (e.g. 1920 for vertical, 1080 for horizontal).
+            fps_num: FPS numerator (e.g. 30 for 30fps, 30000 for 29.97fps).
+            fps_den: FPS denominator (default 1; use 1001 for 29.97/59.94fps).
+            description: Human-readable name; auto-generated from dimensions if empty.
+            sample_aspect_num: Pixel aspect ratio numerator (1 for square pixels — almost always correct).
+            sample_aspect_den: Pixel aspect ratio denominator (1 for square pixels — almost always correct).
+            colorspace: 709 (HD/most social platforms), 601 (SD), or 2020 (HDR).
+            progressive: True for progressive scan (almost always what you want).
+        """
+        try:
+            resolve = helpers.get_resolve(ctx)
+            path = resolve._dbus.create_project_profile(
+                description, width, height, fps_num, fps_den,
+                sample_aspect_num, sample_aspect_den, colorspace, progressive
+            )
+            if not path:
+                return f"ERROR: Could not create profile {width}x{height} @ {fps_num}/{fps_den}fps (invalid dimensions?)"
+            return f"Profile created/matched: {path}"
+        except Exception as e:
+            return f"ERROR: {e}"
+
+    @mcp.tool()
+    def get_project_notes(ctx: Context) -> str:
+        """Get the current project's notes (Kdenlive's Notes panel)."""
+        try:
+            resolve = helpers.get_resolve(ctx)
+            notes = resolve._dbus.get_project_notes()
+            return notes if notes else "(no notes)"
+        except Exception as e:
+            return f"ERROR: {e}"
+
+    @mcp.tool()
+    def set_project_notes(ctx: Context, text: str) -> str:
+        """Append text to the current project's notes.
+
+        Kdenlive's scripting API has no "replace all" for notes — this always
+        appends a new note. Call get_project_notes first if you need to see
+        what's already there before adding more.
+
+        Args:
+            text: Text to append as a new note.
+        """
+        try:
+            resolve = helpers.get_resolve(ctx)
+            ok = resolve._dbus.set_project_notes(text)
+            if not ok:
+                return "ERROR: Could not add project note (no project open?)"
+            return "Note added to project"
+        except Exception as e:
+            return f"ERROR: {e}"
+
+    @mcp.tool()
+    def list_backups(ctx: Context) -> str:
+        """List backup file paths for the current project, newest first.
+
+        Kdenlive auto-saves backups to the project's temp folder. Use
+        restore_backup with one of these paths to recover from one.
+        """
+        try:
+            resolve = helpers.get_resolve(ctx)
+            backups = resolve._dbus.list_backups()
+            if not backups:
+                return "No backups found."
+            return f"{len(backups)} backups (newest first):\n" + "\n".join(f"- {b}" for b in backups)
+        except Exception as e:
+            return f"ERROR: {e}"
+
+    @mcp.tool()
+    def restore_backup(ctx: Context, backup_path: str) -> str:
+        """Open a backup file, replacing the current project in the editor.
+
+        This does not prompt for confirmation on unsaved changes — warn the
+        user about losing unsaved work before calling this.
+
+        Args:
+            backup_path: One of the paths returned by list_backups.
+        """
+        try:
+            resolve = helpers.get_resolve(ctx)
+            ok = resolve._dbus.restore_backup(backup_path)
+            if not ok:
+                return f"ERROR: Could not restore backup {backup_path}"
+            return f"Restored backup: {backup_path}"
+        except Exception as e:
+            return f"ERROR: {e}"
+
+    @mcp.tool()
     def set_playback_speed(ctx: Context, speed: float) -> str:
         """Set preview playback speed. Use to play at 2x, 0.5x, etc.
 

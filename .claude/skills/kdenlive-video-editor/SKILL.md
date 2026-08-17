@@ -69,6 +69,5 @@ Depois de qualquer edição que mude a composição visual (corte, efeito, trans
 
 ## Limitações a ter em mente
 
-- Métodos D-Bus mais novos do fork (efeitos de trilha/master, presets de render customizados, notas do projeto, backups) ainda não têm ferramenta MCP — listados no fim de `mcp-tools.md`. Se o pedido do usuário exigir um desses, avise que a funcionalidade existe no backend mas precisa virar ferramenta MCP primeiro.
 - Não existe corte/split automático por IA embutido no MCP — a identificação de "melhores momentos" é um julgamento seu, guiado pelos critérios em `short-form-clips.md`, não uma chamada de ferramenta.
 - Transcrição de áudio não é uma ferramenta do MCP — se precisar de transcrição pra identificar momentos, avise o usuário que isso é um passo separado (ou peça se ele já tem uma).

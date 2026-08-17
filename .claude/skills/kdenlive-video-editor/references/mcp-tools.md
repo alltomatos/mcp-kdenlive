@@ -102,17 +102,18 @@ Pré-requisito: o Kdenlive precisa estar **rodando** (é controle ao vivo via D-
 `seek_to`, `get_position`, `play`, `pause`, `get_playback_speed`, `set_playback_speed`
 
 ### Render
-`get_render_presets`, `get_render_jobs`, `abort_render_job`
+`get_render_presets`, `get_render_jobs`, `abort_render_job`, `create_render_preset`, `delete_render_preset` — os dois últimos criam/removem um preset de render customizado (ex: um perfil YouTube CRF 18 específico), útil quando os presets padrão do Kdenlive não cobrem o caso.
 
-## Métodos D-Bus expandidos (sem ferramenta MCP ainda)
+### Efeitos de trilha/master
+`add_track_effect`, `remove_track_effect` — efeito na trilha inteira (ex: color grading em toda uma trilha de vídeo, normalize em toda uma trilha de áudio), diferente de `add_effect` que é por clipe.
+`add_master_effect`, `remove_master_effect` — efeito no bus master/projeto, aplicado à saída final já composta (ex: limitador de áudio master, grading final, watermark).
 
-O fork [alltomatos/kdenlive](https://github.com/alltomatos/kdenlive/tree/dbus-scripting-windows) já implementa estes métodos no lado do Kdenlive, mas eles ainda **não têm ferramenta MCP correspondente** — só chamáveis via `dbus._call(...)` cru no `kdenlive-api`, não pelo nome amigável do MCP. Se o usuário pedir algo que caia nessas categorias, explique que a funcionalidade existe no backend mas precisa ser exposta como ferramenta MCP primeiro (ou ofereça pra fazer isso).
+### Perfil de projeto customizado
+`create_project_profile` — cria um perfil de projeto com dimensões/fps arbitrários (ex: 1080x1920 @30fps pra Reels/TikTok/Shorts) quando nenhum perfil padrão serve. Reaproveita um perfil já existente se as dimensões baterem.
 
-- Efeitos de trilha/master: `scriptAddTrackEffect`, `scriptRemoveTrackEffect`, `scriptAddMasterEffect`, `scriptRemoveMasterEffect`
-- Presets de render customizados: `scriptCreateRenderPreset`, `scriptDeleteRenderPreset`
-- Perfil de projeto customizado: `scriptCreateProjectProfile`
-- Notas do projeto: `scriptGetProjectNotes`, `scriptSetProjectNotes`
-- Backups: `scriptListBackups`, `scriptRestoreBackup`
+### Notas e backups do projeto
+`get_project_notes`, `set_project_notes` — notas do painel "Notes" do Kdenlive (útil pra deixar contexto/instruções dentro do projeto). `set_project_notes` **anexa** texto, não substitui — não existe "replace all" na API do Kdenlive.
+`list_backups`, `restore_backup` — lista e restaura backups automáticos do projeto (arquivos `<nome>-<id>-YYYY-MM-DD-HH-MM.kdenlive` no temp folder). `restore_backup` não pede confirmação — avise o usuário sobre perda de trabalho não salvo antes de chamar.
 
 ## Fluxos comuns
 
