@@ -53,6 +53,8 @@ Pré-requisito: o Kdenlive precisa estar **rodando** (é controle ao vivo via D-
 ### Transições
 `add_transition`, `remove_transition`
 
+⚠️ **Bug conhecido (corrigido no fork em `73a8a2a72a`, requer rebuild do Kdenlive pra valer)**: `remove_transition` num clipe que faz parte de um grupo AVSplit (o par áudio+vídeo linkado de um mesmo arquivo importado) **apaga o grupo inteiro** em vez de só remover a mixagem — perde os dois clipes, não só a transição. Enquanto uma instância do Kdenlive sem esse fix estiver em uso: antes de chamar `remove_transition` num clipe com `get_group_info`, se ele estiver num grupo, use `ungroup_clips` primeiro. Se o dano já ocorreu, `undo` (geralmente 2-3 vezes) recupera os clipes.
+
 ### Efeitos
 `add_effect`, `remove_effect`, `get_clip_effects`, `set_clip_opacity`, `set_effect_param`, `get_effect_param`, `set_effect_expression`, `clear_effect_expression`
 
