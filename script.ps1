@@ -512,7 +512,17 @@ Start-Process -FilePath (Join-Path `$bin "dbus-daemon.exe") -ArgumentList "--ses
 Start-Sleep -Seconds 2
 `$addr = (Get-Content `$addrFile -Raw -ErrorAction SilentlyContinue)
 Remove-Item `$addrFile -Force -ErrorAction SilentlyContinue
-if (`$addr) { `$env:DBUS_SESSION_BUS_ADDRESS = `$addr.Trim() }
+if (`$addr) {
+    `$env:DBUS_SESSION_BUS_ADDRESS = `$addr.Trim()
+    # Persiste o endereco num arquivo de nome fixo (sobrescrito a cada
+    # lancamento) para que processos externos ao Kdenlive -- como o
+    # servidor MCP, iniciado pelo editor/CLI, que nunca herda esta
+    # variavel de ambiente -- consigam descobrir o mesmo barramento em vez
+    # de autolancar/conectar a um dbus-daemon vazio. Ver
+    # kdenlive_api.dbus_client._ensure_dbus_session_bus_address.
+    `$stableAddrFile = Join-Path `$env:TEMP "kdenlive_mcp_dbus_addr.txt"
+    Set-Content -Path `$stableAddrFile -Value `$addr.Trim() -NoNewline -Encoding ascii
+}
 Start-Process -FilePath "$kdenliveExePath"
 "@
     Set-ContentNoBom $ps1Path $ps1Content
